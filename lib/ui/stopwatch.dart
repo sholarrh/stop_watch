@@ -1,75 +1,49 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:stop_watch/ui/reset_button.dart';
 import 'package:stop_watch/ui/start_stop_button.dart';
-import 'package:stop_watch/ui/stop_watch_renderer.dart';
+import 'package:stop_watch/ui/stopwatch_renderer.dart';
+import 'package:stop_watch/ui/stopwatch_ticker_ui.dart';
+
 
 class StopWatch extends StatefulWidget {
-  const StopWatch({super.key});
-
   @override
-  _StopWatchState createState() => _StopWatchState();
+  StopWatchState createState() => StopWatchState();
 }
 
-class _StopWatchState extends State<StopWatch> with SingleTickerProviderStateMixin{
-
-  late  Ticker _ticker;
-  Duration get _elapsed => _previouslyElapsed + _currentlyElapsed;
-  Duration _previouslyElapsed = Duration.zero;
-  Duration _currentlyElapsed = Duration.zero;
+class StopWatchState extends State<StopWatch> {
+  /// Global key used to manipulate the state of the StopwatchTickerUI
+  final _tickerUIKey = GlobalKey<StopwatchTickerUIState>();
   bool _isRunning = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _ticker = createTicker ((elapsed) {
-      setState(() {
-        _currentlyElapsed = elapsed;
-      });
-    });
-    //_ticker.start();
-  }
-
-  @override
-  void dispose() {
-   _ticker.dispose();
-    super.dispose();
-  }
-
-  void _toggleRunning () {
+  void _toggleRunning() {
     setState(() {
       _isRunning = !_isRunning;
-      if (_isRunning) {
-        _ticker.start();
-      }else{
-        _ticker.stop();
-        _previouslyElapsed += _currentlyElapsed;
-        _currentlyElapsed = Duration.zero;
-      }
     });
+    _tickerUIKey.currentState?.toggleRunning(_isRunning);
   }
 
   void _reset() {
     setState(() {
-      _ticker.stop();
       _isRunning = false;
-      _currentlyElapsed = Duration.zero;
-      _previouslyElapsed = Duration.zero;
     });
+    _tickerUIKey.currentState?.reset();
   }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
-      builder: (context, constraints ) {
+      builder: (context, constraints) {
+        final radius = constraints.maxWidth / 2;
         return Stack(
           children: [
-            StopWatchRenderer(
-              elapsed: _elapsed,
-              radius: constraints.maxWidth/2,
+            // non-ticker dependent UI
+            StopwatchRenderer(radius: radius),
+            // ticker dependent UI
+            StopwatchTickerUI(
+              key: _tickerUIKey,
+              radius: radius,
             ),
+            // reset button
             Align(
               alignment: Alignment.bottomLeft,
               child: SizedBox(
@@ -80,14 +54,15 @@ class _StopWatchState extends State<StopWatch> with SingleTickerProviderStateMix
                 ),
               ),
             ),
+            // start/stop button
             Align(
               alignment: Alignment.bottomRight,
               child: SizedBox(
                 width: 80,
                 height: 80,
                 child: StartStopButton(
-                  onPressed: _toggleRunning,
                   isRunning: _isRunning,
+                  onPressed: _toggleRunning,
                 ),
               ),
             ),
